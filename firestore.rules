@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, balance, role
+    //
+    // Collection: products
+    // Fields: name, category, price, amount, iconUrl
+    //
+    // Collection: orders
+    // Fields: userId, productId, productName, amount, price, status, createdAt, userEmail
+    //
+    // Collection: recharge_codes
+    // Fields: code, amount, isUsed, usedBy, createdAt
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        (request.auth.token.email == "abdllhhamod8@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'balance', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.balance is number &&
+             data.role in ['admin', 'user'] &&
+             data.displayName is string &&
+             data.displayName.size() < 100;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'productId', 'productName', 'amount', 'price', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.status == 'pending' &&
+             data.price is number &&
+             data.amount is number &&
+             data.productName is string;
+    }
+
+    function isValidDepositRequest(data) {
+      return data.keys().hasAll(['userId', 'amount', 'method', 'senderDetails', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.status == 'pending' &&
+             data.amount is number &&
+             data.amount > 0 &&
+             data.method is string &&
+             data.senderDetails is string &&
+             data.senderDetails.size() < 500;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && 
+                    request.resource.data.role == 'user' && 
+                    request.resource.data.balance == 0 &&
+                    isValidUser(request.resource.data);
+      allow update: if isAdmin() || (
+        isOwner(userId) && 
+        request.resource.data.role == resource.data.role && 
+        request.resource.data.balance == resource.data.balance &&
+        isValidUser(request.resource.data)
+      );
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAdmin();
+    }
+
+    match /recharge_codes/{codeId} {
+      allow get: if isAuthenticated();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && 
+                    !resource.data.isUsed && 
+                    request.resource.data.isUsed == true && 
+                    request.resource.data.usedBy == request.auth.uid &&
+                    request.resource.data.amount == resource.data.amount;
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all' || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /deposit_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidDepositRequest(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

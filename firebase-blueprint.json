@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and wallet balance",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "balance": { "type": "number", "description": "Current wallet balance" },
+        "totalSpent": { "type": "number", "default": 0 },
+        "level": { "type": "string", "enum": ["bronze", "silver", "gold"], "default": "bronze" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      },
+      "required": ["uid", "email", "balance", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Game coins or app recharge options",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number", "description": "Price in SYP (calculated or fixed)" },
+        "priceUSD": { "type": "number", "description": "Price in USD (stable)" },
+        "amount": { "type": "number", "description": "Quantity of coins/diamonds" },
+        "iconUrl": { "type": "string" }
+      },
+      "required": ["name", "category", "priceUSD", "amount"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Purchase request from user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "amount": { "type": "number" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userEmail": { "type": "string" }
+      },
+      "required": ["userId", "productId", "amount", "price", "status", "createdAt"]
+    },
+    "RechargeCode": {
+      "title": "RechargeCode",
+      "description": "Prepaid codes for wallet balance",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "label": { "type": "string", "description": "e.g. Shams Cash, Bemo, or Note" },
+        "amount": { "type": "number" },
+        "isUsed": { "type": "boolean" },
+        "usedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "amount", "isUsed", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System or user notifications",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Target user ID or 'all' for global" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["userId", "title", "message", "type", "createdAt", "isRead"]
+    },
+    "DepositRequest": {
+      "title": "DepositRequest",
+      "description": "User request to add balance via manual transfer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "description": "e.g. Shams Cash, Bemo" },
+        "senderDetails": { "type": "string" },
+        "screenshotUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "method", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Available recharge products"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "User purchase history"
+    },
+    "/recharge_codes/{codeId}": {
+      "schema": "RechargeCode",
+      "description": "Wallet recharge codes"
+    },
+    "/notifications/{notifId}": {
+      "schema": "Notification",
+      "description": "System notifications"
+    },
+    "/deposit_requests/{requestId}": {
+      "schema": "DepositRequest",
+      "description": "Manual balance recharge requests"
+    },
+    "/settings/global": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "rechargeInstructions": { "type": "string" },
+          "supportLink": { "type": "string" },
+          "usdToSypRate": { "type": "number" }
+        }
+      },
+      "description": "Global app settings like recharge info and exchange rate"
+    }
+  }
+}
